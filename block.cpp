@@ -10,15 +10,17 @@
  */
 
 #include "block.h"
-//vous pouvez inclure d'autres librairies si c'est nécessaire
+// vous pouvez inclure d'autres librairies si c'est nécessaire
 
 namespace TP3
 {
 	// Ajouter votre code ici !
+	Block::Block() {}
+
+	Block::Block(size_t td)
+	{
+		this->m_type_donnees = td;
+	}
 }
 
-}//Fin du namespace
-
-
-
-
+// Fin du namespace
