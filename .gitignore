@@ -53,3 +53,6 @@ dkms.conf
 
 # CMake Build Directory
 build/
+
+# Executable
+ufs

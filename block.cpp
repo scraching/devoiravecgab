@@ -23,6 +23,9 @@ namespace TP3
 	{
 		this->m_bitmap = p_bitmap;
 	}
+
+
+	Block::~Block() {}
 }
 
 // Fin du namespace

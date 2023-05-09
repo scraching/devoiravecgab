@@ -104,9 +104,16 @@ namespace TP3
 		return 0;
 	}
 
+	std::string DisqueVirtuel::bd_ls(const std::string& p_DirLocation)
+	{
+		return "_";
+	}
+
 	int DisqueVirtuel::bd_rm(const std::string &p_Filename)
 	{
 		return 0;
 	}
+
+	DisqueVirtuel::~DisqueVirtuel() {}
 
 } // Fin du namespace
