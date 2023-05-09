@@ -17,9 +17,11 @@ namespace TP3
 	// Ajouter votre code ici !
 	Block::Block() {}
 
-	Block::Block(size_t td)
+	Block::Block(size_t td) : m_type_donnees(td) {}
+
+	void Block::setBitmap(std::vector<bool> p_bitmap)
 	{
-		this->m_type_donnees = td;
+		this->m_bitmap = p_bitmap;
 	}
 }
 

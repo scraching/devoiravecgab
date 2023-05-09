@@ -45,17 +45,21 @@ namespace TP3
 
 	int DisqueVirtuel::bd_FormatDisk()
 	{
-		for (auto block_iter : this->m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap)
+		int succes = 0;
+
+		std::vector<bool> initalisateurBlock(N_BLOCK_ON_DISK, true);
+		for (int i = 0; i < (N_INODE_ON_DISK + FREE_INODE_BITMAP); i++)
 		{
-			block_iter = 1;
+			initalisateurBlock.at(i) = false;
 		}
 
-		for (auto inode_iter : this->m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap)
-		{
-			//
-		}
+		std::vector<bool> initalisateurInode(N_INODE_ON_DISK, true);
+		*initalisateurInode.begin() = false;
 
-		return 1;
+		this->m_blockDisque.at(FREE_BLOCK_BITMAP).setBitmap(initalisateurBlock);
+		this->m_blockDisque.at(FREE_INODE_BITMAP).setBitmap(initalisateurInode);
+
+		return succes;
 	}
 
 } // Fin du namespace
