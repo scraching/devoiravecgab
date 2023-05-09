@@ -45,21 +45,68 @@ namespace TP3
 
 	int DisqueVirtuel::bd_FormatDisk()
 	{
-		int succes = 0;
+		int succes = 1;
 
-		std::vector<bool> initalisateurBlock(N_BLOCK_ON_DISK, true);
-		for (int i = 0; i < (N_INODE_ON_DISK + FREE_INODE_BITMAP); i++)
+		try
 		{
-			initalisateurBlock.at(i) = false;
+			std::vector<bool> initalisateurBlock(N_BLOCK_ON_DISK, true);
+			for (int i = 0; i < (N_INODE_ON_DISK + FREE_INODE_BITMAP); i++)
+			{
+				initalisateurBlock.at(i) = false;
+			}
+
+			std::vector<bool> initalisateurInode(N_INODE_ON_DISK, true);
+			*initalisateurInode.begin() = false;
+
+			this->m_blockDisque.at(FREE_BLOCK_BITMAP).setBitmap(initalisateurBlock);
+			this->m_blockDisque.at(FREE_INODE_BITMAP).setBitmap(initalisateurInode);
+
+			for (int i = BASE_BLOCK_INODE; i < (N_INODE_ON_DISK + BASE_BLOCK_INODE); i++)
+			{
+				this->m_blockDisque.at(i).m_inode = new iNode(i-BASE_BLOCK_INODE, 0, 0, 0, 0); // TODO delete inodes in desctuctor
+			}
+
+			for (int i = 0; i < this->m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.size(); i++)
+			{
+				if (this->m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(i))
+				{
+					// TODO Increment stuff?
+
+					this->m_blockDisque.at(i).m_dirEntry.push_back(new dirEntry(1, "."));
+					this->m_blockDisque.at(i).m_dirEntry.push_back(new dirEntry(1, ".."));
+
+					this->m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(i) = false;
+					this->m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(1) = false;
+
+					this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_mode = S_IFDIR;
+					this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_nlink = 2; //sus
+					this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_block = i;
+					
+					break;
+				}
+			}
+		}
+		catch (const std::exception &e)
+		{
+			succes = 0;
 		}
 
-		std::vector<bool> initalisateurInode(N_INODE_ON_DISK, true);
-		*initalisateurInode.begin() = false;
-
-		this->m_blockDisque.at(FREE_BLOCK_BITMAP).setBitmap(initalisateurBlock);
-		this->m_blockDisque.at(FREE_INODE_BITMAP).setBitmap(initalisateurInode);
-
 		return succes;
+	}
+
+	int DisqueVirtuel::bd_mkdir(const std::string &p_DirName)
+	{
+		return 0;
+	}
+
+	int DisqueVirtuel::bd_create(const std::string &p_FileName)
+	{
+		return 0;
+	}
+
+	int DisqueVirtuel::bd_rm(const std::string &p_Filename)
+	{
+		return 0;
 	}
 
 } // Fin du namespace
