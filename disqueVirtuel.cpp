@@ -116,7 +116,74 @@ namespace TP3
 
 	int DisqueVirtuel::bd_mkdir(const std::string &p_DirName)
 	{
-		return 0;
+            std::vector<std::string> pathElements = split(p_DirName, '/');
+		std::string nomDuFichier = *pathElements.end()--;
+
+		int blockLibre = bd_findFreeBlock();
+		int inodeLibre = bd_findFreeInode();
+
+		this->m_blockDisque.at(BASE_BLOCK_INODE + inodeLibre).m_inode->st_mode = S_IFDIR;
+
+		this->m_blockDisque.at(blockLibre).m_dirEntry.push_back(new dirEntry(inodeLibre, nomDuFichier));
+
+                
+                int i =0;
+                int blockAParcourir = m_blockRoot;
+                int inodeAParcourir;
+                bool repoDecouvert = false;
+		while(pathElements.at(i) != nomDuFichier){
+                    
+			for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
+			{
+				if(entry->m_filename == pathElement.at(i))
+				{
+					int inodeNouveauBlock = entry->m_iNode;
+					blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_block;
+                                        repoDecouvert=1;
+                                        inodeAParcourir = blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_ino;
+				}
+				
+				
+			}
+			if(!repoDecouvert){
+                                    return 0;
+                                }
+			
+                    i+=1;
+		}
+		if(!repoDecouvert){
+                                    return 0;
+                                }
+                                
+                for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry){
+                    if(entry->m_filename == nomDuFichier){return 0;}
+                    
+                }
+                int positionInode = bd_findFreeInode();
+                int positionBlock = bd_findFreeBlock();
+                int numInode;
+                for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry){
+                    if(entry->m_filename == ".."){
+                        
+                    }
+                    
+                }
+                
+                m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_iNode->st_mode=S_IFDIR;
+                m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_iNode->st_n_link++;
+                m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_iNode->st_block = positionBlock;
+                m_blockDisque.at(blockAParcourir).push_back(new dirEntry(positionInode + BASE_BLOCK_INODE,nomDuFichier));
+                m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(positionBlock)=false;
+                m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(positionInode)=false;
+                m_blokcDisque.at(positionBlock).push_back(new dirEntry(positionInode + BASE_BLOCK_INODE,"."));
+                m_blokcDisque.at(positionBlock).push_back(new dirEntry(inodeAParcourir,".."));
+                m_blockDisque.at(inodeAParcourir + BASE_BLOCK_INODE).m_inode->st_nlink++;
+		
+                return 1;
+            
+            
+            
+		
 	}
 
 	int DisqueVirtuel::bd_create(const std::string &p_FileName)
@@ -131,7 +198,45 @@ namespace TP3
 
 		this->m_blockDisque.at(blockLibre).m_dirEntry.push_back(new dirEntry(inodeLibre, nomDuFichier));
 
-		return 0;
+                
+                int i =0;
+                int blockAParcourir = m_blockRoot;
+                bool repoDecouvert = false;
+		while(pathElements.at(i) != nomDuFichier){
+                    
+			for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
+			{
+				if(entry->m_filename == *repo)
+				{
+					int inodeNouveauBlock = entry->m_iNode;
+					blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_block;
+                                        repoDecouvert=1;
+				}
+				
+				
+			}
+			if(!repoDecouvert){
+                                    return 0;
+                                }
+			
+                    i+=1
+		}
+		if(!repoDecouvert){
+                                    return 0;
+                                }
+                for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry){
+                    if(entry->m_filename == nomduFichier){return 0}
+                    
+                }
+		int positionInode = bd_findFreeInode();
+                int positionBlock = bd_findFreeBlock();
+                m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_iNode->st_mode=S_IFREG;
+                m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_iNode->st_n_link++;
+                m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_iNode->st_block = positionBlock;
+                m_blockDisque.at(blockAParcourir).push_back(new dirEntry(positionInode + BASE_BLOCK_INODE,nomDuFichier));
+                m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(positionBlock)=false;
+                m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(positionInode)=false;
+                return 1;
 	}
 
 	std::string DisqueVirtuel::bd_ls(const std::string &p_DirLocation)
