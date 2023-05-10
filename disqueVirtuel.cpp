@@ -94,8 +94,7 @@ namespace TP3
 			} */
 
 			int blockAUtiliser = bd_findFreeBlock();
-			this->m_blockDisque.at(blockAUtiliser).m_dirEntry.push_back(new dirEntry(1, "."));
-			this->m_blockDisque.at(blockAUtiliser).m_dirEntry.push_back(new dirEntry(1, ".."));
+			m_blockRoot = blockAUtiliser;
 
 			this->m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(blockAUtiliser) = false;
 			this->m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(1) = false;
@@ -103,6 +102,9 @@ namespace TP3
 			this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_mode = S_IFDIR;
 			this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_nlink = 2; // sus
 			this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_block = blockAUtiliser;
+
+			this->m_blockDisque.at(blockAUtiliser).m_dirEntry.push_back(new dirEntry(1, "."));
+			this->m_blockDisque.at(blockAUtiliser).m_dirEntry.push_back(new dirEntry(1, ".."));
 		}
 		catch (const std::exception &e)
 		{
@@ -124,6 +126,8 @@ namespace TP3
 
 		int blockLibre = bd_findFreeBlock();
 		int inodeLibre = bd_findFreeInode();
+
+		this->m_blockDisque.at(BASE_BLOCK_INODE + inodeLibre).m_inode->st_mode = S_IFDIR;
 
 		this->m_blockDisque.at(blockLibre).m_dirEntry.push_back(new dirEntry(inodeLibre, nomDuFichier));
 
@@ -147,9 +151,9 @@ namespace TP3
 		for (int i = 0; i < this->m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.size(); i++)
 		{
 			if (this->m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(i))
-				{
-					freeBlock = i;
-				}
+			{
+				freeBlock = i;
+			}
 		}
 
 		return freeBlock;
@@ -184,11 +188,35 @@ namespace TP3
 		return freeInode;
 	}
 
-	bool DisqueVirtuel::bd_doesRepoExist(const std::string &p_DirName)
+	int DisqueVirtuel::doesParentExist(const std::string &p_DirName)
 	{
-		std::vector<std::string> pathElements = split(p_DirName, '/');
+		int succes = 0;
 
-		return false;
+		int blockAUtiliser = bd_findFreeBlock();
+		int inodeAUtiliser = bd_findFreeInode();
+
+		std::vector<std::string> pathElements = split(p_DirName, '/');
+		int blockAParcourir = m_blockRoot;
+		for (auto repo = pathElements.begin(); repo < pathElements.end()--; repo++)
+		{
+			for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
+			{
+				if(entry->m_filename == *repo)
+				{
+					int inodeNouveauBlock = entry->m_iNode;
+					blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_block;
+				}
+			}
+		}
+
+		/* this->m_blockDisque.at(BASE_BLOCK_INODE + inodeAUtiliser).m_inode->st_mode = S_IFDIR;
+		this->m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(blockAUtiliser) = false;
+		this->m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(inodeAUtiliser) = false;
+
+		this->m_blockDisque.at(blockAUtiliser).m_dirEntry.push_back(new dirEntry(inodeAUtiliser, "."));
+		this->m_blockDisque.at(blockAUtiliser).m_dirEntry.push_back(new dirEntry(inodeAUtiliser, "..")); */
+
+		return succes;
 	}
 
 	DisqueVirtuel::~DisqueVirtuel() {}
