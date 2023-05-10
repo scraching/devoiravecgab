@@ -10,6 +10,7 @@
  */
 
 #include "block.h"
+#include <vector>
 
 #ifndef _DISQUEVIRTUEL__H
 #define _DISQUEVIRTUEL__H
@@ -43,6 +44,13 @@ private:
     std::vector<Block> m_blockDisque; // Un vecteur de blocs représentant le disque virtuel
 
     // Vous pouvez ajouter ici des méthodes privées
+	int bd_findFreeBlock() const; // Parcourt la bitmap de blocks pour trouver le premier block libre
+	int bd_findFreeInode() const; // PArcourt la bitmap d'i-nodes pour trouver la première i-node libre
+
+	bool bd_doesRepoExist(const std::string& p_DirName); // Vérifie si une string de répertoire est associée à une i-node
+	int createEmptyRepo(); // Crée un répertoire vide contenant les entrées "." et ".."
+
+	std::vector<std::string> split(const std::string &s, char delim); // Sépare une string pour en récuṕerer les éléments séparés par delim
 };
 
 }//Fin du namespace
