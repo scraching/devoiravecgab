@@ -70,6 +70,8 @@ private:
     iNode * m_inode;			// pour stocker les métadonnées d'un fichier ou d'un répertoire
     std::vector<dirEntry*> m_dirEntry;	// pour stocker la liste des dirEntry (les informations d'un répertoire)
     friend class DisqueVirtuel;	// La classe DisqueVirtuel est amie pour avoir accès à la partie privée !
+
+	void setBitmap(std::vector<bool> p_bitmap); // Définit l'état du bitmap d'un bloc selon le vecteur passé en entrée
 };
 
 }//Fin du namespace

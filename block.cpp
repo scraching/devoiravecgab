@@ -10,15 +10,22 @@
  */
 
 #include "block.h"
-//vous pouvez inclure d'autres librairies si c'est nécessaire
+// vous pouvez inclure d'autres librairies si c'est nécessaire
 
 namespace TP3
 {
 	// Ajouter votre code ici !
+	Block::Block() {}
+
+	Block::Block(size_t td) : m_type_donnees(td) {}
+
+	void Block::setBitmap(std::vector<bool> p_bitmap)
+	{
+		this->m_bitmap = p_bitmap;
+	}
+
+
+	Block::~Block() {}
 }
 
-}//Fin du namespace
-
-
-
-
+// Fin du namespace
