@@ -127,6 +127,8 @@ namespace TP3
 		int blockLibre = bd_findFreeBlock();
 		int inodeLibre = bd_findFreeInode();
 
+
+
 		this->m_blockDisque.at(BASE_BLOCK_INODE + inodeLibre).m_inode->st_mode = S_IFDIR;
 
 		this->m_blockDisque.at(blockLibre).m_dirEntry.push_back(new dirEntry(inodeLibre, nomDuFichier));
@@ -190,8 +192,6 @@ namespace TP3
 
 	int DisqueVirtuel::doesParentExist(const std::string &p_DirName)
 	{
-		int succes = 0;
-
 		int blockAUtiliser = bd_findFreeBlock();
 		int inodeAUtiliser = bd_findFreeInode();
 
@@ -199,24 +199,25 @@ namespace TP3
 		int blockAParcourir = m_blockRoot;
 		for (auto repo = pathElements.begin(); repo < pathElements.end()--; repo++)
 		{
+			bool repoDecouvert = false;
 			for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
 			{
+
 				if(entry->m_filename == *repo)
 				{
 					int inodeNouveauBlock = entry->m_iNode;
 					blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_block;
+					repoDecouvert = true;
 				}
+			}
+
+			if (!repoDecouvert)
+			{
+				return 0; // Un répertoire parent n'existe pas
 			}
 		}
 
-		/* this->m_blockDisque.at(BASE_BLOCK_INODE + inodeAUtiliser).m_inode->st_mode = S_IFDIR;
-		this->m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(blockAUtiliser) = false;
-		this->m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(inodeAUtiliser) = false;
-
-		this->m_blockDisque.at(blockAUtiliser).m_dirEntry.push_back(new dirEntry(inodeAUtiliser, "."));
-		this->m_blockDisque.at(blockAUtiliser).m_dirEntry.push_back(new dirEntry(inodeAUtiliser, "..")); */
-
-		return succes;
+		return 1; // Le répertoire parent a été trouvé
 	}
 
 	DisqueVirtuel::~DisqueVirtuel() {}
