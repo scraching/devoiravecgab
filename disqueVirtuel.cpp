@@ -229,7 +229,89 @@ namespace TP3
 
 	std::string DisqueVirtuel::bd_ls(const std::string &p_DirLocation)
 	{
-		return "_";
+		std::ostringstream output;
+
+		output << p_DirLocation << "\n";
+
+		std::vector<std::string> pathElements = split(p_DirLocation, '/');
+		std::string fileName = pathElements.at(pathElements.size() - 1);
+
+		int blockAParcourir = m_blockRoot;
+		for (int i = 0; i < pathElements.size(); i++)
+		{
+			for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
+			{
+				if (entry->m_filename == pathElements.at(i) && this->m_blockDisque.at(BASE_BLOCK_INODE + entry->m_iNode).m_inode->st_mode == S_IFDIR)
+				{
+					int inodeNouveauBlock = entry->m_iNode;
+					blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_block;
+				}
+			}
+		}
+
+		for (auto entry : this->m_blockDisque.at(blockAParcourir).m_dirEntry)
+		{
+			std::ostringstream nomRepo;
+			int longueurRepo = 1;
+			std::string nomRepoString = entry->m_filename;
+			if (this->m_blockDisque.at(entry->m_iNode + BASE_BLOCK_INODE).m_inode->st_mode == S_IFREG)
+			{
+				nomRepo << "-";
+			}
+			else
+			{
+				nomRepo << "d";
+			}
+			while (longueurRepo < 16 - nomRepoString.size())
+			{
+				nomRepo << " ";
+				longueurRepo++;
+			}
+			nomRepo << nomRepoString;
+			output << nomRepo.str();
+			output << " ";
+			
+			std::ostringstream tailleRepo;
+			tailleRepo << "Size: ";
+			int longueurTaille = 5;
+			std::string tailleRepoString = std::to_string(this->m_blockDisque.at(entry->m_iNode + BASE_BLOCK_INODE).m_inode->st_size);
+			while (longueurTaille < 11 - tailleRepoString.size())
+			{
+				tailleRepo << " ";
+				longueurTaille++;
+			}
+			output << tailleRepo.str();
+			output << tailleRepoString;
+			output << " ";
+
+			std::ostringstream numeroInode;
+			numeroInode << "inode: ";
+			int longueurInode = 6;
+			std::string numeroInodeString = std::to_string(this->m_blockDisque.at(entry->m_iNode + BASE_BLOCK_INODE).m_inode->st_ino);
+			while (longueurInode < 10 - numeroInodeString.size())
+			{
+				numeroInode << " ";
+				longueurInode++;
+			}
+			output << numeroInode.str();
+			output << numeroInodeString;
+			output << " ";
+
+			std::ostringstream nombreLiens;
+			nombreLiens << "nlink: ";
+			int longueurLiens = 6;
+			std::string nombreLiensString = std::to_string(this->m_blockDisque.at(entry->m_iNode + BASE_BLOCK_INODE).m_inode->st_nlink);
+			while (longueurLiens < 10 - nombreLiensString.size())
+			{
+				nombreLiens << " ";
+				longueurLiens++;
+			}
+			output << nombreLiens.str();
+			output << nombreLiensString;
+			output << "\n";
+		}
+
+		return output.str();
 	}
 
 	int DisqueVirtuel::bd_rm(const std::string &p_Filename)
@@ -303,8 +385,6 @@ namespace TP3
 			}
 		}
 
-		std::cout << "Bloc libre: " << freeBlock << std::endl;
-
 		return freeBlock;
 	}
 
@@ -334,8 +414,6 @@ namespace TP3
 				break;
 			}
 		}
-
-		std::cout << "i-node libre: " << freeInode << std::endl;
 
 		return freeInode;
 	}
