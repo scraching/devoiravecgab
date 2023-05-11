@@ -50,13 +50,14 @@ namespace TP3
 
 	int DisqueVirtuel::bd_FormatDisk()
 	{
+		std::cout << "Formattage" << std::endl;
 		int succes = 1;
 
 		try
 		{
 			std::vector<bool> initalisateurBlock(N_BLOCK_ON_DISK, true);
 			// On marque les blocks 0 à 23 comme non-libres
-			for (int i = 0; i < (N_INODE_ON_DISK + FREE_INODE_BITMAP); i++)
+			for (int i = 0; i < (N_INODE_ON_DISK + BASE_BLOCK_INODE); i++)
 			{
 				initalisateurBlock.at(i) = false;
 			}
@@ -73,25 +74,10 @@ namespace TP3
 				this->m_blockDisque.at(i).m_inode = new iNode(i - BASE_BLOCK_INODE, 0, 0, 0, 0); // TODO delete inodes in desctuctor
 			}
 
-			/* for (int i = 0; i < this->m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.size(); i++)
+			for (auto i : m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap)
 			{
-				if (this->m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(i))
-				{
-					// TODO Increment stuff?
-
-					this->m_blockDisque.at(i).m_dirEntry.push_back(new dirEntry(1, "."));
-					this->m_blockDisque.at(i).m_dirEntry.push_back(new dirEntry(1, ".."));
-
-					this->m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(i) = false;
-					this->m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(1) = false;
-
-					this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_mode = S_IFDIR;
-					this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_nlink = 2; //sus
-					this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_block = i;
-
-					break;
-				}
-			} */
+				std::cout << "etat du bloc: " << i << std::endl;
+			}
 
 			int blockAUtiliser = bd_findFreeBlock();
 			m_blockRoot = blockAUtiliser;
@@ -114,26 +100,134 @@ namespace TP3
 		return succes;
 	}
 
+	//! TODO Adjust file size on concerned directories 
 	int DisqueVirtuel::bd_mkdir(const std::string &p_DirName)
 	{
-		return 0;
-	}
+		std::vector<std::string> pathElements = split(p_DirName, '/');
 
-	int DisqueVirtuel::bd_create(const std::string &p_FileName)
-	{
-		std::vector<std::string> pathElements = split(p_FileName, '/');
-		std::string nomDuFichier = *pathElements.end()--;
+		std::string nomDuFichier = pathElements.at(pathElements.size() - 1);
 
 		int blockLibre = bd_findFreeBlock();
 		int inodeLibre = bd_findFreeInode();
-
-
 
 		this->m_blockDisque.at(BASE_BLOCK_INODE + inodeLibre).m_inode->st_mode = S_IFDIR;
 
 		this->m_blockDisque.at(blockLibre).m_dirEntry.push_back(new dirEntry(inodeLibre, nomDuFichier));
 
-		return 0;
+		int i = 0;
+		int blockAParcourir = m_blockRoot;
+		int inodeAParcourir;
+		bool repoDecouvert = false;
+
+		while (pathElements.at(i) != nomDuFichier)
+		{
+			for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
+			{
+				if (entry->m_filename == pathElements.at(i))
+				{
+					int inodeNouveauBlock = entry->m_iNode;
+					blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_block;
+					repoDecouvert = 1;
+					inodeAParcourir = blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_ino;
+				}
+			}
+			if (!repoDecouvert)
+			{
+				return 0;
+			}
+
+			i += 1;
+		}
+		if (!repoDecouvert)
+		{
+			return 0;
+		}
+
+		for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
+		{
+			if (entry->m_filename == nomDuFichier)
+			{
+				return 0;
+			}
+		}
+		int positionInode = bd_findFreeInode();
+		int positionBlock = bd_findFreeBlock();
+		int numInode;
+
+		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_mode = S_IFDIR;
+		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_nlink++;
+		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_block = positionBlock;
+		m_blockDisque.at(blockAParcourir).m_dirEntry.push_back(new dirEntry(positionInode + BASE_BLOCK_INODE, nomDuFichier));
+		m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(positionBlock) = false;
+		m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(positionInode) = false;
+		m_blockDisque.at(positionBlock).m_dirEntry.push_back(new dirEntry(positionInode + BASE_BLOCK_INODE, "."));
+		m_blockDisque.at(positionBlock).m_dirEntry.push_back(new dirEntry(inodeAParcourir, ".."));
+		m_blockDisque.at(inodeAParcourir + BASE_BLOCK_INODE).m_inode->st_nlink++;
+
+		return 1;
+	}
+
+	int DisqueVirtuel::bd_create(const std::string &p_FileName)
+	{
+		std::vector<std::string> pathElements = split(p_FileName, '/');
+		std::string nomDuFichier = *(pathElements.end()--);
+
+		int blockLibre = bd_findFreeBlock();
+		int inodeLibre = bd_findFreeInode();
+
+		std::cout << "UFS: Saisie bloc " << blockLibre << std::endl;
+		std::cout << "UFS: Saisie i-node " << inodeLibre << std::endl;
+
+		this->m_blockDisque.at(BASE_BLOCK_INODE + inodeLibre).m_inode->st_mode = S_IFDIR;
+
+		this->m_blockDisque.at(blockLibre).m_dirEntry.push_back(new dirEntry(inodeLibre, nomDuFichier));
+
+		int i = 0;
+		int blockAParcourir = m_blockRoot;
+		bool repoDecouvert = false;
+		while (pathElements.at(i) != nomDuFichier)
+		{
+
+			for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
+			{
+				if (entry->m_filename == pathElements.at(i))
+				{
+					int inodeNouveauBlock = entry->m_iNode;
+					blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_block;
+					repoDecouvert = 1;
+				}
+			}
+			if (!repoDecouvert)
+			{
+				return 0;
+			}
+
+			i += 1;
+		}
+		if (!repoDecouvert)
+		{
+			return 0;
+		}
+		for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
+		{
+			if (entry->m_filename == nomDuFichier)
+			{
+				return 0;
+			}
+		}
+		int positionInode = bd_findFreeInode();
+		int positionBlock = bd_findFreeBlock();
+
+		std::cout << "UFS: Saisie bloc " << positionBlock << std::endl;
+		std::cout << "UFS: Saisie i-node " << positionInode << std::endl;
+
+		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_mode = S_IFREG;
+		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_nlink++;
+		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_block = positionBlock;
+		m_blockDisque.at(blockAParcourir).m_dirEntry.push_back(new dirEntry(positionInode + BASE_BLOCK_INODE, nomDuFichier));
+		m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(positionBlock) = false;
+		m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(positionInode) = false;
+		return 1;
 	}
 
 	std::string DisqueVirtuel::bd_ls(const std::string &p_DirLocation)
@@ -155,8 +249,11 @@ namespace TP3
 			if (this->m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(i))
 			{
 				freeBlock = i;
+				break;
 			}
 		}
+
+		std::cout << "Bloc libre: " << freeBlock << std::endl;
 
 		return freeBlock;
 	}
@@ -184,14 +281,19 @@ namespace TP3
 			if (this->m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(i))
 			{
 				freeInode = i;
+				break;
 			}
 		}
+
+		std::cout << "i-node libre: " << freeInode << std::endl;
 
 		return freeInode;
 	}
 
 	int DisqueVirtuel::doesParentExist(const std::string &p_DirName)
 	{
+		int succes = 0;
+
 		int blockAUtiliser = bd_findFreeBlock();
 		int inodeAUtiliser = bd_findFreeInode();
 
@@ -199,25 +301,24 @@ namespace TP3
 		int blockAParcourir = m_blockRoot;
 		for (auto repo = pathElements.begin(); repo < pathElements.end()--; repo++)
 		{
-			bool repoDecouvert = false;
 			for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
 			{
-
-				if(entry->m_filename == *repo)
+				if (entry->m_filename == *repo)
 				{
 					int inodeNouveauBlock = entry->m_iNode;
 					blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_block;
-					repoDecouvert = true;
 				}
-			}
-
-			if (!repoDecouvert)
-			{
-				return 0; // Un répertoire parent n'existe pas
 			}
 		}
 
-		return 1; // Le répertoire parent a été trouvé
+		/* this->m_blockDisque.at(BASE_BLOCK_INODE + inodeAUtiliser).m_inode->st_mode = S_IFDIR;
+		this->m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(blockAUtiliser) = false;
+		this->m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(inodeAUtiliser) = false;
+
+		this->m_blockDisque.at(blockAUtiliser).m_dirEntry.push_back(new dirEntry(inodeAUtiliser, "."));
+		this->m_blockDisque.at(blockAUtiliser).m_dirEntry.push_back(new dirEntry(inodeAUtiliser, "..")); */
+
+		return succes;
 	}
 
 	DisqueVirtuel::~DisqueVirtuel() {}
