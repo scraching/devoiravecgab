@@ -50,11 +50,8 @@ namespace TP3
 
 	int DisqueVirtuel::bd_FormatDisk()
 	{
-		std::cout << "Formattage" << std::endl;
 		int succes = 1;
 
-		try
-		{
 			std::vector<bool> initalisateurBlock(N_BLOCK_ON_DISK, true);
 			// On marque les blocks 0 à 23 comme non-libres
 			for (int i = 0; i < (N_INODE_ON_DISK + BASE_BLOCK_INODE); i++)
@@ -74,6 +71,7 @@ namespace TP3
 				this->m_blockDisque.at(i).m_inode = new iNode(i - BASE_BLOCK_INODE, 0, 0, 0, 0); // TODO delete inodes in desctuctor
 			}
 
+			// Création du répertoire racine
 			int blockAUtiliser = bd_findFreeBlock();
 			m_blockRoot = blockAUtiliser;
 
@@ -81,13 +79,15 @@ namespace TP3
 			this->m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(1) = false;
 
 			this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_mode = S_IFDIR;
-			this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_nlink = 2; // sus
+			this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_nlink = 2;
+			this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_size = 2 * 28;
 			this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_block = blockAUtiliser;
 
 			this->m_blockDisque.at(blockAUtiliser).m_dirEntry.push_back(new dirEntry(1, "."));
 			this->m_blockDisque.at(blockAUtiliser).m_dirEntry.push_back(new dirEntry(1, ".."));
-		}
-		catch (const std::exception &e)
+		
+		// Le formattage échoue si la taille du disque virtuel formatté est incorrecte.
+		if (m_blockDisque.size() != N_BLOCK_ON_DISK)
 		{
 			succes = 0;
 		}
@@ -105,7 +105,7 @@ namespace TP3
 		int i = 0;
 		int blockAParcourir = m_blockRoot;
 		int inodeAParcourir;
-		std::cout << "taille de pathElements: " << pathElements.size() << std::endl;
+
 		bool repoDecouvert = pathElements.size() >= 3 ? false : true; // Créer un répertoire à partir de / est un cas spécial
 
 		if (pathElements.size() <= 2)
@@ -144,6 +144,7 @@ namespace TP3
 			}
 		}
 
+		// On trouve le prochain bloc libre et la prochaine i-node libres pour la crátion du répertoire
 		int positionInode = bd_findFreeInode();
 		int positionBlock = bd_findFreeBlock();
 
@@ -158,12 +159,16 @@ namespace TP3
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_mode = S_IFDIR;
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_nlink++;
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_block = positionBlock;
+		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_size += 28;
 		m_blockDisque.at(blockAParcourir).m_dirEntry.push_back(new dirEntry(positionInode, nomDuFichier));
+
 		m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(positionBlock) = false;
 		m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(positionInode) = false;
+
 		m_blockDisque.at(positionBlock).m_dirEntry.push_back(new dirEntry(positionInode + BASE_BLOCK_INODE, "."));
 		m_blockDisque.at(positionBlock).m_dirEntry.push_back(new dirEntry(inodeAParcourir, ".."));
 		m_blockDisque.at(inodeAParcourir + BASE_BLOCK_INODE).m_inode->st_nlink++;
+		m_blockDisque.at(inodeAParcourir + BASE_BLOCK_INODE).m_inode->st_nlink += 2 * 28;
 
 		return 1;
 	}
@@ -207,6 +212,8 @@ namespace TP3
 				return 0;
 			}
 		}
+
+		// On trouve le prochain bloc libre et la prochaine i-node libres pour la création du fichier
 		int positionInode = bd_findFreeInode();
 		int positionBlock = bd_findFreeBlock();
 
@@ -221,9 +228,11 @@ namespace TP3
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_mode = S_IFREG;
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_nlink++;
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_block = positionBlock;
+		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_size += 28;
 		m_blockDisque.at(blockAParcourir).m_dirEntry.push_back(new dirEntry(positionInode, nomDuFichier));
 		m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(positionBlock) = false;
 		m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(positionInode) = false;
+
 		return 1;
 	}
 
@@ -249,6 +258,7 @@ namespace TP3
 			}
 		}
 
+		// Boucle qui formatte l'affichage de chaque entrée du répertoire
 		for (auto entry : this->m_blockDisque.at(blockAParcourir).m_dirEntry)
 		{
 			std::ostringstream nomRepo;
