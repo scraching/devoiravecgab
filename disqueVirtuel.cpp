@@ -74,11 +74,6 @@ namespace TP3
 				this->m_blockDisque.at(i).m_inode = new iNode(i - BASE_BLOCK_INODE, 0, 0, 0, 0); // TODO delete inodes in desctuctor
 			}
 
-			for (auto i : m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap)
-			{
-				std::cout << "etat du bloc: " << i << std::endl;
-			}
-
 			int blockAUtiliser = bd_findFreeBlock();
 			m_blockRoot = blockAUtiliser;
 
@@ -110,26 +105,30 @@ namespace TP3
 		int i = 0;
 		int blockAParcourir = m_blockRoot;
 		int inodeAParcourir;
-		bool repoDecouvert = false;
+		std::cout << "taille de pathElements: " << pathElements.size() << std::endl;
+		bool repoDecouvert = pathElements.size() >= 3 ? false : true; // Créer un répertoire à partir de / est un cas spécial
 
-		while (pathElements.at(i) != nomDuFichier)
+		if (pathElements.size() <= 2)
 		{
-			for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
+			inodeAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_ino;
+		}
+		else
+		{
+			while (pathElements.at(i) != nomDuFichier)
 			{
-				if (entry->m_filename == pathElements.at(i))
+				for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
 				{
-					int inodeNouveauBlock = entry->m_iNode;
-					blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_block;
-					repoDecouvert = 1;
-					inodeAParcourir = blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_ino;
+					if (entry->m_filename == pathElements.at(i) && this->m_blockDisque.at(BASE_BLOCK_INODE + entry->m_iNode).m_inode->st_mode == S_IFDIR)
+					{
+						int inodeNouveauBlock = entry->m_iNode;
+						blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_block;
+						repoDecouvert = true;
+						inodeAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_ino;
+					}
 				}
-			}
-			if (!repoDecouvert)
-			{
-				return 0;
-			}
 
-			i += 1;
+				i += 1;
+			}
 		}
 		if (!repoDecouvert)
 		{
@@ -148,13 +147,18 @@ namespace TP3
 		int positionInode = bd_findFreeInode();
 		int positionBlock = bd_findFreeBlock();
 
+		if (positionBlock == 0 || positionInode == 0)
+		{
+			return 0;
+		}
+
 		std::cout << "UFS: Saisie bloc " << positionBlock << std::endl;
 		std::cout << "UFS: Saisie i-node " << positionInode << std::endl;
 
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_mode = S_IFDIR;
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_nlink++;
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_block = positionBlock;
-		m_blockDisque.at(blockAParcourir).m_dirEntry.push_back(new dirEntry(positionInode + BASE_BLOCK_INODE, nomDuFichier));
+		m_blockDisque.at(blockAParcourir).m_dirEntry.push_back(new dirEntry(positionInode, nomDuFichier));
 		m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(positionBlock) = false;
 		m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(positionInode) = false;
 		m_blockDisque.at(positionBlock).m_dirEntry.push_back(new dirEntry(positionInode + BASE_BLOCK_INODE, "."));
@@ -167,33 +171,28 @@ namespace TP3
 	int DisqueVirtuel::bd_create(const std::string &p_FileName)
 	{
 		std::vector<std::string> pathElements = split(p_FileName, '/');
-		std::string nomDuFichier = *(pathElements.end()--);
-
-		/* this->m_blockDisque.at(BASE_BLOCK_INODE + inodeLibre).m_inode->st_mode = S_IFDIR;
-
-		this->m_blockDisque.at(blockLibre).m_dirEntry.push_back(new dirEntry(inodeLibre, nomDuFichier)); */
+		std::string nomDuFichier = pathElements.at(pathElements.size() - 1);
 
 		int i = 0;
 		int blockAParcourir = m_blockRoot;
-		bool repoDecouvert = false;
-		while (pathElements.at(i) != nomDuFichier)
+		bool repoDecouvert = pathElements.size() >= 3 ? false : true; // Créer un fichier à partir de / est un cas spécial
+
+		if (pathElements.size() >= 3)
 		{
-
-			for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
+			while (pathElements.at(i) != nomDuFichier)
 			{
-				if (entry->m_filename == pathElements.at(i))
+				for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
 				{
-					int inodeNouveauBlock = entry->m_iNode;
-					blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_block;
-					repoDecouvert = 1;
+					if (entry->m_filename == pathElements.at(i) && this->m_blockDisque.at(BASE_BLOCK_INODE + entry->m_iNode).m_inode->st_mode == S_IFDIR)
+					{
+						int inodeNouveauBlock = entry->m_iNode;
+						blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_block;
+						repoDecouvert = true;
+					}
 				}
-			}
-			if (!repoDecouvert)
-			{
-				return 0;
-			}
 
-			i += 1;
+				i += 1;
+			}
 		}
 		if (!repoDecouvert)
 		{
@@ -211,13 +210,18 @@ namespace TP3
 		int positionInode = bd_findFreeInode();
 		int positionBlock = bd_findFreeBlock();
 
+		if (positionBlock == 0 || positionInode == 0)
+		{
+			return 0;
+		}
+
 		std::cout << "UFS: Saisie bloc " << positionBlock << std::endl;
 		std::cout << "UFS: Saisie i-node " << positionInode << std::endl;
 
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_mode = S_IFREG;
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_nlink++;
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_block = positionBlock;
-		m_blockDisque.at(blockAParcourir).m_dirEntry.push_back(new dirEntry(positionInode + BASE_BLOCK_INODE, nomDuFichier));
+		m_blockDisque.at(blockAParcourir).m_dirEntry.push_back(new dirEntry(positionInode, nomDuFichier));
 		m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(positionBlock) = false;
 		m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(positionInode) = false;
 		return 1;
@@ -244,7 +248,7 @@ namespace TP3
 				{
 					int inodeNouveauBlock = entry->m_iNode;
 					blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_block;
-					repoDecouvert = 1;
+					repoDecouvert = true;
 				}
 			}
 			if (!repoDecouvert)
@@ -274,7 +278,7 @@ namespace TP3
 			return 0;
 		}
 
-		if(m_blockDisque.at(numeroInodeFichier + BASE_BLOCK_INODE).m_inode->st_mode == S_IFREG)
+		if (m_blockDisque.at(numeroInodeFichier + BASE_BLOCK_INODE).m_inode->st_mode == S_IFREG)
 		{
 			//
 		}
