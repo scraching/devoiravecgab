@@ -100,19 +100,12 @@ namespace TP3
 		return succes;
 	}
 
-	//! TODO Adjust file size on concerned directories 
+	//! TODO Adjust file size on concerned directories
 	int DisqueVirtuel::bd_mkdir(const std::string &p_DirName)
 	{
 		std::vector<std::string> pathElements = split(p_DirName, '/');
 
 		std::string nomDuFichier = pathElements.at(pathElements.size() - 1);
-
-		int blockLibre = bd_findFreeBlock();
-		int inodeLibre = bd_findFreeInode();
-
-		this->m_blockDisque.at(BASE_BLOCK_INODE + inodeLibre).m_inode->st_mode = S_IFDIR;
-
-		this->m_blockDisque.at(blockLibre).m_dirEntry.push_back(new dirEntry(inodeLibre, nomDuFichier));
 
 		int i = 0;
 		int blockAParcourir = m_blockRoot;
@@ -143,6 +136,7 @@ namespace TP3
 			return 0;
 		}
 
+		// On vérifie si le répertoire existe déjà
 		for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
 		{
 			if (entry->m_filename == nomDuFichier)
@@ -150,9 +144,12 @@ namespace TP3
 				return 0;
 			}
 		}
+
 		int positionInode = bd_findFreeInode();
 		int positionBlock = bd_findFreeBlock();
-		int numInode;
+
+		std::cout << "UFS: Saisie bloc " << positionBlock << std::endl;
+		std::cout << "UFS: Saisie i-node " << positionInode << std::endl;
 
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_mode = S_IFDIR;
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_nlink++;
@@ -172,15 +169,9 @@ namespace TP3
 		std::vector<std::string> pathElements = split(p_FileName, '/');
 		std::string nomDuFichier = *(pathElements.end()--);
 
-		int blockLibre = bd_findFreeBlock();
-		int inodeLibre = bd_findFreeInode();
+		/* this->m_blockDisque.at(BASE_BLOCK_INODE + inodeLibre).m_inode->st_mode = S_IFDIR;
 
-		std::cout << "UFS: Saisie bloc " << blockLibre << std::endl;
-		std::cout << "UFS: Saisie i-node " << inodeLibre << std::endl;
-
-		this->m_blockDisque.at(BASE_BLOCK_INODE + inodeLibre).m_inode->st_mode = S_IFDIR;
-
-		this->m_blockDisque.at(blockLibre).m_dirEntry.push_back(new dirEntry(inodeLibre, nomDuFichier));
+		this->m_blockDisque.at(blockLibre).m_dirEntry.push_back(new dirEntry(inodeLibre, nomDuFichier)); */
 
 		int i = 0;
 		int blockAParcourir = m_blockRoot;
@@ -208,6 +199,8 @@ namespace TP3
 		{
 			return 0;
 		}
+
+		// On vérifie si le fichier existe déjà
 		for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
 		{
 			if (entry->m_filename == nomDuFichier)
@@ -237,7 +230,60 @@ namespace TP3
 
 	int DisqueVirtuel::bd_rm(const std::string &p_Filename)
 	{
-		return 0;
+		std::vector<std::string> pathElements = split(p_Filename, '/');
+		std::string nomDuFichier = *(pathElements.end()--);
+
+		int i = 0;
+		int blockAParcourir = m_blockRoot;
+		bool repoDecouvert = false;
+		for (auto element : pathElements)
+		{
+			for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
+			{
+				if (entry->m_filename == element)
+				{
+					int inodeNouveauBlock = entry->m_iNode;
+					blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_block;
+					repoDecouvert = 1;
+				}
+			}
+			if (!repoDecouvert)
+			{
+				return 0;
+			}
+		}
+		if (!repoDecouvert)
+		{
+			return 0;
+		}
+
+		bool fileExists = false;
+		int numeroInodeFichier;
+		for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
+		{
+			if (entry->m_filename == nomDuFichier)
+			{
+				fileExists = true;
+				numeroInodeFichier = entry->m_iNode;
+				break;
+			}
+		}
+
+		if (!fileExists)
+		{
+			return 0;
+		}
+
+		if(m_blockDisque.at(numeroInodeFichier + BASE_BLOCK_INODE).m_inode->st_mode == S_IFREG)
+		{
+			//
+		}
+		else
+		{
+			//
+		}
+
+		return 1;
 	}
 
 	int DisqueVirtuel::bd_findFreeBlock() const
@@ -310,13 +356,6 @@ namespace TP3
 				}
 			}
 		}
-
-		/* this->m_blockDisque.at(BASE_BLOCK_INODE + inodeAUtiliser).m_inode->st_mode = S_IFDIR;
-		this->m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(blockAUtiliser) = false;
-		this->m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(inodeAUtiliser) = false;
-
-		this->m_blockDisque.at(blockAUtiliser).m_dirEntry.push_back(new dirEntry(inodeAUtiliser, "."));
-		this->m_blockDisque.at(blockAUtiliser).m_dirEntry.push_back(new dirEntry(inodeAUtiliser, "..")); */
 
 		return succes;
 	}
