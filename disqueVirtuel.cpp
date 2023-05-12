@@ -46,51 +46,77 @@ namespace TP3
 		{
 			this->m_blockDisque.push_back(nouveauBlockDeDonnee);
 		}
+
+		// Création des i-nodes
+		for (int i = BASE_BLOCK_INODE; i < (N_INODE_ON_DISK + BASE_BLOCK_INODE); i++)
+		{
+			this->m_blockDisque.at(i).m_inode = new iNode(i - BASE_BLOCK_INODE, 0, 0, 0, 0);
+		}
 	}
 
 	int DisqueVirtuel::bd_FormatDisk()
 	{
 		int succes = 1;
 
-			std::vector<bool> initalisateurBlock(N_BLOCK_ON_DISK, true);
-			// On marque les blocks 0 à 23 comme non-libres
-			for (int i = 0; i < (N_INODE_ON_DISK + BASE_BLOCK_INODE); i++)
+		std::vector<bool> initalisateurBlock(N_BLOCK_ON_DISK, true);
+		// On marque les blocks 0 à 23 comme non-libres
+		for (int i = 0; i < (N_INODE_ON_DISK + BASE_BLOCK_INODE); i++)
+		{
+			initalisateurBlock.at(i) = false;
+		}
+
+		std::vector<bool> initalisateurInode(N_INODE_ON_DISK, true);
+		// On marque le premier i-node comme non-libre
+		*initalisateurInode.begin() = false;
+
+		this->m_blockDisque.at(FREE_BLOCK_BITMAP).setBitmap(initalisateurBlock);
+		this->m_blockDisque.at(FREE_INODE_BITMAP).setBitmap(initalisateurInode);
+
+		for (auto block : this->m_blockDisque)
+		{
+			if (block.m_dirEntry.size() > 0)
 			{
-				initalisateurBlock.at(i) = false;
+				int tailleDirEntry = block.m_dirEntry.size();
+				for (auto entry : block.m_dirEntry)
+				{
+					delete entry;
+				}
+				block.m_dirEntry.clear();
 			}
+		}
 
-			std::vector<bool> initalisateurInode(N_INODE_ON_DISK, true);
-			// On marque le premier i-node comme non-libre
-			*initalisateurInode.begin() = false;
+		for (int i = BASE_BLOCK_INODE; i < (N_INODE_ON_DISK + BASE_BLOCK_INODE); i++)
+		{
+			this->m_blockDisque.at(i).m_inode->st_ino = i - BASE_BLOCK_INODE;
+			this->m_blockDisque.at(i).m_inode->st_mode = 0;
+			this->m_blockDisque.at(i).m_inode->st_nlink = 0;
+			this->m_blockDisque.at(i).m_inode->st_size = 0;
+			this->m_blockDisque.at(i).m_inode->st_block = 0;
+		}
 
-			this->m_blockDisque.at(FREE_BLOCK_BITMAP).setBitmap(initalisateurBlock);
-			this->m_blockDisque.at(FREE_INODE_BITMAP).setBitmap(initalisateurInode);
+		// Création du répertoire racine
+		int blockAUtiliser = bd_findFreeBlock();
+		m_blockRoot = blockAUtiliser;
 
-			for (int i = BASE_BLOCK_INODE; i < (N_INODE_ON_DISK + BASE_BLOCK_INODE); i++)
-			{
-				this->m_blockDisque.at(i).m_inode = new iNode(i - BASE_BLOCK_INODE, 0, 0, 0, 0); // TODO delete inodes in desctuctor
-			}
+		this->m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(blockAUtiliser) = false;
+		this->m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(ROOT_INODE) = false;
 
-			// Création du répertoire racine
-			int blockAUtiliser = bd_findFreeBlock();
-			m_blockRoot = blockAUtiliser;
+		this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_mode = S_IFDIR;
+		this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_nlink = 2;
+		this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_size = 2 * 28;
+		this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_block = blockAUtiliser;
 
-			this->m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(blockAUtiliser) = false;
-			this->m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(1) = false;
+		this->m_blockDisque.at(blockAUtiliser).m_dirEntry.push_back(new dirEntry(ROOT_INODE, "."));
+		this->m_blockDisque.at(blockAUtiliser).m_dirEntry.push_back(new dirEntry(ROOT_INODE, ".."));
 
-			this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_mode = S_IFDIR;
-			this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_nlink = 2;
-			this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_size = 2 * 28;
-			this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_block = blockAUtiliser;
-
-			this->m_blockDisque.at(blockAUtiliser).m_dirEntry.push_back(new dirEntry(1, "."));
-			this->m_blockDisque.at(blockAUtiliser).m_dirEntry.push_back(new dirEntry(1, ".."));
-		
 		// Le formattage échoue si la taille du disque virtuel formatté est incorrecte.
 		if (m_blockDisque.size() != N_BLOCK_ON_DISK)
 		{
 			succes = 0;
 		}
+
+		std::cout << "UFS: Saisit bloc " << m_blockRoot << std::endl;
+		std::cout << "UFS: Saisit i-node " << ROOT_INODE << std::endl;
 
 		return succes;
 	}
@@ -168,7 +194,7 @@ namespace TP3
 		m_blockDisque.at(positionBlock).m_dirEntry.push_back(new dirEntry(positionInode + BASE_BLOCK_INODE, "."));
 		m_blockDisque.at(positionBlock).m_dirEntry.push_back(new dirEntry(inodeAParcourir, ".."));
 		m_blockDisque.at(inodeAParcourir + BASE_BLOCK_INODE).m_inode->st_nlink++;
-		m_blockDisque.at(inodeAParcourir + BASE_BLOCK_INODE).m_inode->st_nlink += 2 * 28;
+		m_blockDisque.at(inodeAParcourir + BASE_BLOCK_INODE).m_inode->st_size += 2 * 28;
 
 		return 1;
 	}
@@ -280,7 +306,7 @@ namespace TP3
 			nomRepo << nomRepoString;
 			output << nomRepo.str();
 			output << " ";
-			
+
 			std::ostringstream tailleRepo;
 			tailleRepo << "Size: ";
 			int longueurTaille = 5;
@@ -327,25 +353,26 @@ namespace TP3
 	int DisqueVirtuel::bd_rm(const std::string &p_Filename)
 	{
 		std::vector<std::string> pathElements = split(p_Filename, '/');
-		std::string nomDuFichier = *(pathElements.end()--);
+		std::string nomDuFichier = pathElements.at(pathElements.size() - 1);
 
 		int i = 0;
 		int blockAParcourir = m_blockRoot;
-		bool repoDecouvert = false;
-		for (auto element : pathElements)
+		bool repoDecouvert = pathElements.size() >= 3 ? false : true;
+
+		if (pathElements.size() >= 3)
 		{
-			for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
+			while (pathElements.at(i) != nomDuFichier)
 			{
-				if (entry->m_filename == element)
+				for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
 				{
-					int inodeNouveauBlock = entry->m_iNode;
-					blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_block;
-					repoDecouvert = true;
+					if (entry->m_filename == pathElements.at(i) && this->m_blockDisque.at(BASE_BLOCK_INODE + entry->m_iNode).m_inode->st_mode == S_IFDIR)
+					{
+						int inodeNouveauBlock = entry->m_iNode;
+						blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_block;
+						repoDecouvert = true;
+					}
 				}
-			}
-			if (!repoDecouvert)
-			{
-				return 0;
+				i++;
 			}
 		}
 		if (!repoDecouvert)
@@ -370,13 +397,86 @@ namespace TP3
 			return 0;
 		}
 
-		if (m_blockDisque.at(numeroInodeFichier + BASE_BLOCK_INODE).m_inode->st_mode == S_IFREG)
+		if (this->m_blockDisque.at(numeroInodeFichier + BASE_BLOCK_INODE).m_inode->st_mode == S_IFREG)
 		{
-			//
+			this->m_blockDisque.at(numeroInodeFichier + BASE_BLOCK_INODE).m_inode->st_nlink--;
+			this->m_blockDisque.at(numeroInodeFichier + BASE_BLOCK_INODE).m_inode->st_mode = 0;
+			// this->m_blockDisque.at(numeroInodeFichier + BASE_BLOCK_INODE).m_inode->st_block = 0;
+
+			int positionEntreeASupprimer = 0;
+			for (auto entry : this->m_blockDisque.at(blockAParcourir).m_dirEntry)
+			{
+				if (entry->m_iNode == numeroInodeFichier)
+				{
+					break;
+				}
+				positionEntreeASupprimer++;
+			}
+			delete this->m_blockDisque.at(blockAParcourir).m_dirEntry.at(positionEntreeASupprimer);
+			this->m_blockDisque.at(blockAParcourir).m_dirEntry.erase(this->m_blockDisque.at(blockAParcourir).m_dirEntry.begin() + positionEntreeASupprimer);
+
+			int blockALibrer = this->m_blockDisque.at(numeroInodeFichier + BASE_BLOCK_INODE).m_inode->st_block;
+
+			this->m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(blockALibrer) = true;
+			std::cout << "UFS: Relache bloc " << blockALibrer << std::endl;
+
+			if (this->m_blockDisque.at(numeroInodeFichier + BASE_BLOCK_INODE).m_inode->st_nlink == 0)
+			{
+				this->m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(numeroInodeFichier) = true;
+				std::cout << "UFS: Relache i-node " << numeroInodeFichier << std::endl;
+			}
 		}
 		else
 		{
-			//
+			int inodeALiberer;
+			int blockALiberer;
+			for (auto entry : this->m_blockDisque.at(blockAParcourir).m_dirEntry)
+			{
+				if (entry->m_filename == nomDuFichier)
+				{
+					inodeALiberer = entry->m_iNode;
+					blockALiberer = this->m_blockDisque.at(inodeALiberer + BASE_BLOCK_INODE).m_inode->st_block;
+				}
+			}
+
+			if (this->m_blockDisque.at(blockALiberer).m_dirEntry.size() <= 2)
+			{
+				delete this->m_blockDisque.at(blockALiberer).m_dirEntry.at(0);
+				delete this->m_blockDisque.at(blockALiberer).m_dirEntry.at(1);
+				this->m_blockDisque.at(blockALiberer).m_dirEntry.pop_back();
+				this->m_blockDisque.at(blockALiberer).m_dirEntry.pop_back();
+
+				this->m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(blockALiberer) = true;
+				std::cout << "UFS: Relache bloc " << blockALiberer << std::endl;
+
+				this->m_blockDisque.at(inodeALiberer + BASE_BLOCK_INODE).m_inode->st_nlink--;
+				this->m_blockDisque.at(inodeALiberer + BASE_BLOCK_INODE).m_inode->st_size -= 28;
+				this->m_blockDisque.at(inodeALiberer + BASE_BLOCK_INODE).m_inode->st_mode = 0;
+				this->m_blockDisque.at(inodeALiberer + BASE_BLOCK_INODE).m_inode->st_block = 0;
+				this->m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(inodeALiberer) = true;
+
+				int positionEntreeASupprimer = 0;
+				for (auto entry : this->m_blockDisque.at(blockAParcourir).m_dirEntry)
+				{
+					if (entry->m_iNode == numeroInodeFichier)
+					{
+						break;
+					}
+					positionEntreeASupprimer++;
+				}
+				delete this->m_blockDisque.at(blockAParcourir).m_dirEntry.at(positionEntreeASupprimer);
+				this->m_blockDisque.at(blockAParcourir).m_dirEntry.erase(this->m_blockDisque.at(blockAParcourir).m_dirEntry.begin() + positionEntreeASupprimer);
+
+				if (this->m_blockDisque.at(numeroInodeFichier + BASE_BLOCK_INODE).m_inode->st_nlink == 0)
+				{
+					this->m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(numeroInodeFichier) = true;
+					std::cout << "UFS: Relache i-node " << numeroInodeFichier << std::endl;
+				}
+			}
+			else
+			{
+				return 0;
+			}
 		}
 
 		return 1;
