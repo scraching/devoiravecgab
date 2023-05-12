@@ -48,8 +48,6 @@ private:
 	int bd_findFreeBlock() const; // Parcourt la bitmap de blocks pour trouver le premier block libre
 	int bd_findFreeInode() const; // PArcourt la bitmap d'i-nodes pour trouver la première i-node libre
 
-	int doesParentExist(const std::string& p_DirName); // Vérifie si une string de répertoire parent est associée à une i-node
-
 	std::vector<std::string> split(const std::string &s, char delim); // Sépare une string pour en récuṕerer les éléments séparés par delim
 };
 

@@ -79,6 +79,7 @@ namespace TP3
 				int tailleDirEntry = block.m_dirEntry.size();
 				for (auto entry : block.m_dirEntry)
 				{
+					entry->m_filename = ".";
 					delete entry;
 				}
 				block.m_dirEntry.clear();
@@ -134,6 +135,7 @@ namespace TP3
 
 		bool repoDecouvert = pathElements.size() >= 3 ? false : true; // Créer un répertoire à partir de / est un cas spécial
 
+		// Vériication de l'existence du parent
 		if (pathElements.size() <= 2)
 		{
 			inodeAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + 1).m_inode->st_ino;
@@ -182,15 +184,18 @@ namespace TP3
 		std::cout << "UFS: Saisie bloc " << positionBlock << std::endl;
 		std::cout << "UFS: Saisie i-node " << positionInode << std::endl;
 
+		// Création de la nouvelle entry avec son i-node associée
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_mode = S_IFDIR;
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_nlink++;
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_block = positionBlock;
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_size += 28;
 		m_blockDisque.at(blockAParcourir).m_dirEntry.push_back(new dirEntry(positionInode, nomDuFichier));
 
+		// On saisit l'inode et le bloc du nouveau répertoire
 		m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(positionBlock) = false;
 		m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(positionInode) = false;
 
+		// Création du nouveau répertoire libre
 		m_blockDisque.at(positionBlock).m_dirEntry.push_back(new dirEntry(positionInode + BASE_BLOCK_INODE, "."));
 		m_blockDisque.at(positionBlock).m_dirEntry.push_back(new dirEntry(inodeAParcourir, ".."));
 		m_blockDisque.at(inodeAParcourir + BASE_BLOCK_INODE).m_inode->st_nlink++;
@@ -208,6 +213,7 @@ namespace TP3
 		int blockAParcourir = m_blockRoot;
 		bool repoDecouvert = pathElements.size() >= 3 ? false : true; // Créer un fichier à partir de / est un cas spécial
 
+		// Vérification de l'existence du parent
 		if (pathElements.size() >= 3)
 		{
 			while (pathElements.at(i) != nomDuFichier)
@@ -251,11 +257,15 @@ namespace TP3
 		std::cout << "UFS: Saisie bloc " << positionBlock << std::endl;
 		std::cout << "UFS: Saisie i-node " << positionInode << std::endl;
 
+		// Création de la nouvelle entry avec son i-node associée
+
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_mode = S_IFREG;
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_nlink++;
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_block = positionBlock;
 		m_blockDisque.at(positionInode + BASE_BLOCK_INODE).m_inode->st_size += 28;
 		m_blockDisque.at(blockAParcourir).m_dirEntry.push_back(new dirEntry(positionInode, nomDuFichier));
+
+		// On saisit l'inode et le bloc du nouveau répertoire
 		m_blockDisque.at(FREE_BLOCK_BITMAP).m_bitmap.at(positionBlock) = false;
 		m_blockDisque.at(FREE_INODE_BITMAP).m_bitmap.at(positionInode) = false;
 
@@ -271,6 +281,7 @@ namespace TP3
 		std::vector<std::string> pathElements = split(p_DirLocation, '/');
 		std::string fileName = pathElements.at(pathElements.size() - 1);
 
+		// Vérification de l'existence du répertoire à lister
 		int blockAParcourir = m_blockRoot;
 		for (int i = 0; i < pathElements.size(); i++)
 		{
@@ -287,6 +298,7 @@ namespace TP3
 		// Boucle qui formatte l'affichage de chaque entrée du répertoire
 		for (auto entry : this->m_blockDisque.at(blockAParcourir).m_dirEntry)
 		{
+			// Nom du répertoire ou fichier
 			std::ostringstream nomRepo;
 			int longueurRepo = 1;
 			std::string nomRepoString = entry->m_filename;
@@ -307,6 +319,7 @@ namespace TP3
 			output << nomRepo.str();
 			output << " ";
 
+			// Taille du fichier
 			std::ostringstream tailleRepo;
 			tailleRepo << "Size: ";
 			int longueurTaille = 5;
@@ -320,6 +333,7 @@ namespace TP3
 			output << tailleRepoString;
 			output << " ";
 
+			// Numéro d'i-node
 			std::ostringstream numeroInode;
 			numeroInode << "inode: ";
 			int longueurInode = 6;
@@ -333,6 +347,7 @@ namespace TP3
 			output << numeroInodeString;
 			output << " ";
 
+			// Nombre de liens vers l'i-node
 			std::ostringstream nombreLiens;
 			nombreLiens << "nlink: ";
 			int longueurLiens = 6;
@@ -359,6 +374,7 @@ namespace TP3
 		int blockAParcourir = m_blockRoot;
 		bool repoDecouvert = pathElements.size() >= 3 ? false : true;
 
+		// Vérification de l'existence du parent
 		if (pathElements.size() >= 3)
 		{
 			while (pathElements.at(i) != nomDuFichier)
@@ -401,7 +417,6 @@ namespace TP3
 		{
 			this->m_blockDisque.at(numeroInodeFichier + BASE_BLOCK_INODE).m_inode->st_nlink--;
 			this->m_blockDisque.at(numeroInodeFichier + BASE_BLOCK_INODE).m_inode->st_mode = 0;
-			// this->m_blockDisque.at(numeroInodeFichier + BASE_BLOCK_INODE).m_inode->st_block = 0;
 
 			int positionEntreeASupprimer = 0;
 			for (auto entry : this->m_blockDisque.at(blockAParcourir).m_dirEntry)
@@ -526,30 +541,6 @@ namespace TP3
 		}
 
 		return freeInode;
-	}
-
-	int DisqueVirtuel::doesParentExist(const std::string &p_DirName)
-	{
-		int succes = 0;
-
-		int blockAUtiliser = bd_findFreeBlock();
-		int inodeAUtiliser = bd_findFreeInode();
-
-		std::vector<std::string> pathElements = split(p_DirName, '/');
-		int blockAParcourir = m_blockRoot;
-		for (auto repo = pathElements.begin(); repo < pathElements.end()--; repo++)
-		{
-			for (auto entry : m_blockDisque.at(blockAParcourir).m_dirEntry)
-			{
-				if (entry->m_filename == *repo)
-				{
-					int inodeNouveauBlock = entry->m_iNode;
-					blockAParcourir = this->m_blockDisque.at(BASE_BLOCK_INODE + inodeNouveauBlock).m_inode->st_block;
-				}
-			}
-		}
-
-		return succes;
 	}
 
 	DisqueVirtuel::~DisqueVirtuel() {}
